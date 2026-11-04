@@ -5,6 +5,7 @@ from fpdf import FPDF
 
 st.set_page_config(page_title="Padel Addict - Match Organizer", page_icon="🎾", layout="wide")
 
+# 1. Dictionnaires de Traduction (Français / English)
 LANG_DICT = {
     "FR": {
         "title": "Padel Addict",
@@ -64,6 +65,7 @@ LANG_DICT = {
     }
 }
 
+# Styles CSS personnalisés
 st.markdown("""
     <style>
     .round-header { background-color: #2C3E50; color: white; padding: 10px; border-radius: 8px; font-weight: bold; margin-top: 20px; margin-bottom: 10px; }
@@ -72,6 +74,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+# 2. Sélecteur de Langue global
 if "lang" not in st.session_state:
     st.session_state.lang = "FR"
 
@@ -87,6 +90,7 @@ with col_lang:
 
 T = LANG_DICT[st.session_state.lang]
 
+# Gestion du Logo
 with col_logo:
     logo_path = os.path.expanduser("~/Downloads/logo.png")
     if os.path.exists(logo_path):
@@ -100,6 +104,7 @@ with col_title:
     st.title(T["title"])
     st.subheader(T["subtitle"])
 
+# Base de joueurs en session
 if "players" not in st.session_state:
     st.session_state.players = [
         "Thomas", "Lucas", "Nicolas", "Alexandre", "Julien", 
@@ -121,7 +126,8 @@ with col_config:
 with col_players:
     st.markdown(f"{T['player_title']} ({len(st.session_state.players)})")
     
-    col_add_input, col_add_btn = st.columns()
+    # Ajouter un joueur
+    col_add_input, col_add_btn = st.columns(2)
     with col_add_input:
         new_player = st.text_input("Add Player", key="add_player_input", label_visibility="collapsed", placeholder=T["placeholder_add"])
     with col_add_btn:
@@ -130,7 +136,8 @@ with col_players:
                 st.session_state.players.append(new_player.strip())
                 st.rerun()
 
-    col_del_select, col_del_btn = st.columns()
+    # Supprimer un joueur de la liste globale
+    col_del_select, col_del_btn = st.columns(2)
     with col_del_select:
         player_to_delete = st.selectbox("Delete Player", [T["select_del"]] + sorted(st.session_state.players), label_visibility="collapsed")
     with col_del_btn:
@@ -141,6 +148,7 @@ with col_players:
 
     st.markdown("---")
     
+    # Menu Déroulant / Multi-select pour les joueurs du jour (Vide par défaut)
     selected_players = st.multiselect(
         T["multiselect_lbl"],
         options=sorted(st.session_state.players),
@@ -248,19 +256,20 @@ with col_b2:
         st.session_state.rounds_results = None
         st.rerun()
 
-if st.session_state.rounds_results:
-    pdf_path = generate_pdf(st.session_state.rounds_results)
-    with col_b3:
-        with open(pdf_path, "rb") as f:
-            st.download_button(
-                label=T["btn_pdf"],
-                data=f,
-                file_name="Padel_Addict_Planning.pdf",
-                mime="application/pdf",
-                use_container_width=True)
+if st.session_state.rounds_results:pdf_path = generate_pdf(st.session_state.rounds_results)
+with col_b3:
+with open(pdf_path, "rb") as f:
+st.download_button(
+label=T["btn_pdf"],
+data=f,
+file_name="Padel_Addict_Planning.pdf",
+mime="application/pdf",
+use_container_width=True
+)
 st.markdown(T["results_title"])
 for r in st.session_state.rounds_results:
-st.markdown(f'🔄 {T["tour"]} {r["round_num"]}   |   ⏰ {T["duration"]} {r["duration_str"]}', unsafe_allow_html=True)
+hdr_txt = f'🔄 {T["tour"]} {r["round_num"]}   |   ⏰ {T["duration"]} {r["duration_str"]}'
+st.markdown(hdr_txt, unsafe_allow_html=True)
 court_cols = st.columns(court_count)
 for idx, c in enumerate(r['courts']):
 with court_cols[idx]:
@@ -274,8 +283,4 @@ VS
 """, unsafe_allow_html=True)
 if r['bench']:
 bench_list = ", ".join([f"{p}" for p in r['bench']])
-st.markdown(f"""
-
-{T['bench']} {bench_list}
-
-""", unsafe_allow_html=True)
+st.markdown(f'{T["bench"]} {bench_list}', unsafe_allow_html=True)
