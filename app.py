@@ -70,19 +70,22 @@ with col_players:
                 st.rerun()
 
     st.markdown("---")
-    # Menu Déroulant / Multi-select pour les joueurs du jour
-    st.markdown("**🎯 Sélectionnez les joueurs présents aujourd'hui :**")
+    
+    # Menu Déroulant / Multi-select pour les joueurs du jour (Vide par défaut)
     selected_players = st.multiselect(
-        "Joueurs du jour :",
+        "🎯 Sélectionnez les joueurs présents aujourd'hui :",
         options=sorted(st.session_state.players),
-        default=sorted(st.session_state.players),
-        label_visibility="collapsed"
+        default=[],  # Reste vide à l'accueil
+        placeholder="Choisissez les joueurs..."
     )
+    
+    # Affichage du nombre de joueurs sélectionnés
+    st.markdown(f"**Joueurs sélectionnés pour aujourd'hui : `{len(selected_players)}`**")
 
 def run_rotation():
     players_needed = court_count * 4
     if len(selected_players) < players_needed:
-        st.error(f"❌ Il vous faut au moins {players_needed} joueurs sélectionnés pour remplir {court_count} terrains.")
+        st.error(f"❌ Il vous faut au moins {players_needed} joueurs sélectionnés pour remplir {court_count} terrains (Actuellement : {len(selected_players)}).")
         return
 
     total_rounds = total_time // match_time
