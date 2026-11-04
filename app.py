@@ -229,7 +229,7 @@ def generate_pdf(rounds):
 
         pdf.set_font("Helvetica", "", 10)
         for c in r['courts']:
-            match_txt = f"  {T['court']} {c['court']}:  {', '.join(c['t1'])}   VS   {', '.join(c['t2'])}"
+            match_txt = f"  {T['court']} {c['court']}:  {c['t1'][0]} & {c['t1'][1]}   VS   {c['t2'][0]} & {c['t2'][1]}"
             pdf.cell(0, 6, match_txt, ln=True)
         
         if r['bench']:
@@ -255,8 +255,39 @@ with col_b2:
     if st.button(T["btn_reset"], use_container_width=True):
         st.session_state.rounds_results = None
         st.rerun()
+        if st.session_state.rounds_results:
+pdf_path = generate_pdf(st.session_state.rounds_results)
+with col_b3:
+with open(pdf_path, "rb") as f:
+st.download_button(
+label=T["btn_pdf"],
+data=f,
+file_name="Padel_Addict_Planning.pdf",
+mime="application/pdf",
+use_container_width=True
+)
+st.markdown(T["results_title"])
+for r in st.session_state.rounds_results:
+st.markdown(f'🔄 {T["tour"]} {r["round_num"]}   |   ⏰ {T["duration"]} {r["duration_str"]}', unsafe_allow_html=True)
+court_cols = st.columns(court_count)
+for idx, c in enumerate(r['courts']):
+with court_cols[idx]:
+st.markdown(f"""
 
-if st.session_state.rounds_results:pdf_path = generate_pdf(st.session_state.rounds_results)
+🔲 {T['court']} {c['court']}
+🔵 {c['t1'][0]} & {c['t1'][1]}
+VS
+🟠 {c['t2'][0]} & {c['t2'][1]}
+
+""", unsafe_allow_html=True)
+if r['bench']:
+bench_list = ", ".join([f"{p}" for p in r['bench']])
+st.markdown(f"""
+
+{T['bench']} {bench_list}
+
+""", unsafe_allow_html=True)if st.session_state.rounds_results:
+pdf_path = generate_pdf(st.session_state.rounds_results)
 with col_b3:
 with open(pdf_path, "rb") as f:
 st.download_button(
