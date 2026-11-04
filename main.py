@@ -257,7 +257,6 @@ with col_b2:
         st.rerun()
 
 if st.session_state.rounds_results:pdf_path = generate_pdf(st.session_state.rounds_results)
-with col_b3:
 with open(pdf_path, "rb") as f:
 st.download_button(
 label=T["btn_pdf"],
