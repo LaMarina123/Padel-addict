@@ -67,7 +67,7 @@ LANG_DICT = {
     }
 }
 
-col_logo, col_title = st.columns([1, 4])
+col_logo, col_title = st.columns()
 with col_logo:
     logo_path = os.path.expanduser("~/Downloads/logo.png")
     if os.path.exists(logo_path):
@@ -130,7 +130,7 @@ with col_config:
 with col_players:
     st.markdown(f"### {T['mgmt_title']} ({len(st.session_state.players)})")
     
-    col_add_input, col_add_btn = st.columns([3, 1])
+    col_add_input, col_add_btn = st.columns()
     with col_add_input:
         new_player = st.text_input("Nom", key="add_player_input", label_visibility="collapsed", placeholder=T["add_placeholder"])
     with col_add_btn:
@@ -141,7 +141,7 @@ with col_players:
                 save_players(st.session_state.players)
                 st.rerun()
 
-    col_del_select, col_del_btn = st.columns([3, 1])
+    col_del_select, col_del_btn = st.columns()
     with col_del_select:
         player_to_delete = st.selectbox("Supprimer", [T["del_placeholder"]] + sorted(st.session_state.players), label_visibility="collapsed", key="sb_del_player")
     with col_del_btn:
@@ -229,7 +229,7 @@ def generate_pdf_bytes(rounds):
 
         pdf.set_font("Helvetica", "", 10)
         for c in r['courts']:
-            match_txt = f"  {T['pdf_court']} {c['court']}:  {c['t1'][0]} & {c['t1'][1]}   VS   {c['t2'][0]} & {c['t2'][1]}"
+            match_txt = f"  {T['pdf_court']} {c['court']}:  {c['t1']} & {c['t1']}   VS   {c['t2']} & {c['t2']}"
             pdf.cell(0, 6, match_txt, ln=True)
         
         if r['bench']:
@@ -254,18 +254,8 @@ if st.button(T["btn_reset"], use_container_width=True):
 
 if st.session_state.rounds_results:
     pdf_data = generate_pdf_bytes(st.session_state.rounds_results)
-    st.download_button(label=T["btn_download"],
-data=pdf_data,
-file_name="Padel_Addict_Planning.pdf",
-mime="application/pdf",
-use_container_width=True
-)label=T["btn_download"],
-data=pdf_data,
-file_name="Padel_Addict_Planning.pdf",
-mime="application/pdf",
-use_container_width=True
-)label=T["btn_download"],
-data=pdf_data,
+    st.download_button(
+        label=T["btn_download"],data=pdf_data,
 file_name="Padel_Addict_Planning.pdf",
 mime="application/pdf",
 use_container_width=True
