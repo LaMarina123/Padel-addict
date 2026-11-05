@@ -27,13 +27,37 @@ with col_title:
     st.title("Padel Addict")
     st.subheader("Gestionnaire & Générateur de Matchs Intelligents")
 
-# Base de joueurs en session
-if "players" not in st.session_state:
-    st.session_state.players = [
+# --- GESTION DU FICHIER DE SAUVEGARDE ---
+DB_FILE = "players_list.txt"
+
+def load_players():
+    """Charge les joueurs depuis le fichier local ou crée la liste par défaut."""
+    if os.path.exists(DB_FILE):
+        with open(DB_FILE, "r", encoding="utf-8") as f:
+            # On récupère chaque ligne en enlevant les espaces vides
+            players = [line.strip() for line in f.readlines() if line.strip()]
+            if players:  # Si le fichier n'est pas vide
+                return players
+    
+    # Base par défaut si le fichier n'existe pas ou est vide
+    default_players = [
         "Thomas", "Lucas", "Nicolas", "Alexandre", "Julien", 
         "Guillaume", "Maxime", "Romain", "Antoine", "Florian", 
         "Cédric", "Jérôme", "Vincent", "Mathieu", "Pierre", "Benoît"
     ]
+    save_players(default_players)
+    return default_players
+
+def save_players(players_list):
+    """Sauvegarde la liste actuelle des joueurs dans le fichier local."""
+    with open(DB_FILE, "w", encoding="utf-8") as f:
+        for player in sorted(players_list):
+            f.write(f"{player}\n")
+
+# Initialisation des variables session Streamlit
+if "players" not in st.session_state:
+    st.session_state.players = load_players()
+
 if "rounds_results" not in st.session_state:
     st.session_state.rounds_results = None
 
@@ -55,8 +79,10 @@ with col_players:
         new_player = st.text_input("Nom du nouveau joueur :", key="add_player_input", label_visibility="collapsed", placeholder="Nom du joueur...")
     with col_add_btn:
         if st.button("➕ Ajouter", use_container_width=True):
-            if new_player.strip() and new_player.strip() not in st.session_state.players:
-                st.session_state.players.append(new_player.strip())
+            cleaned_name = new_player.strip()
+            if cleaned_name and cleaned_name not in st.session_state.players:
+                st.session_state.players.append(cleaned_name)
+                save_players(st.session_state.players)  # Sauvegarde persistante
                 st.rerun()
 
     # Supprimer un joueur de la liste globale
@@ -67,19 +93,19 @@ with col_players:
         if st.button("🗑️ Supprimer", use_container_width=True, type="secondary"):
             if player_to_delete and player_to_delete != "-- Sélectionner un joueur à retirer --":
                 st.session_state.players.remove(player_to_delete)
+                save_players(st.session_state.players)  # Sauvegarde persistante
                 st.rerun()
 
     st.markdown("---")
     
-    # Menu Déroulant / Multi-select pour les joueurs du jour (Vide par défaut)
+    # Menu Déroulant / Multi-select pour les joueurs du jour
     selected_players = st.multiselect(
         "🎯 Sélectionnez les joueurs présents aujourd'hui :",
         options=sorted(st.session_state.players),
-        default=[],  # Reste vide à l'accueil
+        default=[],  
         placeholder="Choisissez les joueurs..."
     )
     
-    # Affichage du nombre de joueurs sélectionnés
     st.markdown(f"**Joueurs sélectionnés pour aujourd'hui : `{len(selected_players)}`**")
 
 def run_rotation():
@@ -202,14 +228,9 @@ if st.session_state.rounds_results:
                 <div class="court-card">
                     <div style="font-weight:bold; color:#007FFF; border-bottom:1px solid #cbd5e1; margin-bottom:5px;">🔲 Terrain {c['court']}</div>
                     <div style="margin: 2px 0;">🔵 <b>{c['t1'][0]}</b> & <b>{c['t1'][1]}</b></div>
-                    <div style="color:#E74C3C; font-weight:bold; font-size:0.8rem; margin: 2px 0; text-align:center;">VS</div>
-                    <div style="margin: 2px 0;">🟠 <b>{c['t2'][0]}</b> & <b>{c['t2'][1]}</b></div>
+                    <div style="color:#64748b; font-size:12px; font-weight:bold; margin: 2px 0;">VS</div>
+                    <div style="margin: 2px 0;">🔴 <b>{c['t2'][0]}</b> & <b>{c['t2'][1]}</b></div>
                 </div>
                 """, unsafe_allow_html=True)
         if r['bench']:
-            bench_list = ", ".join([f"<b>{p}</b>" for p in r['bench']])
-            st.markdown(f"""
-            <div class="bench-card">
-                🪑 <b>Banc de touche (Prioritaires au prochain tour) :</b> {bench_list}
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown(f'<div class="bench-card">⏳ <b>Joueurs sur le banc pour ce tour :</b> {", ".join(r["bench"])}</div>', unsafe_allow_html=True
