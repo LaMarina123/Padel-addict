@@ -67,7 +67,7 @@ LANG_DICT = {
     }
 }
 
-col_logo, col_title = st.columns()
+col_logo, col_title = st.columns([1, 4])
 with col_logo:
     logo_path = os.path.expanduser("~/Downloads/logo.png")
     if os.path.exists(logo_path):
@@ -75,7 +75,7 @@ with col_logo:
     elif os.path.exists("logo.png"):
         st.image("logo.png", width=120)
     else:
-        st.info("💡 Placez 'logo.png' dans Téléchargements.")
+        st.info("💡 Place 'logo.png'")
 
 # --- GESTION DU FICHIER DE SAUVEGARDE ---
 DB_FILE = "players_list.txt"
@@ -109,7 +109,7 @@ if "lang" not in st.session_state:
     st.session_state.lang = "FR"
 
 with col_title:
-    col_t, col_l = st.columns()
+    col_t, col_l = st.columns(2)
     with col_t:
         st.title("Padel Addict")
     with col_l:
@@ -122,15 +122,15 @@ col_config, col_players = st.columns(2)
 
 with col_config:
     st.markdown(f"### {T['config_title']}")
-    court_count = st.selectbox(T["courts_label"],, index=1, key="sb_court_count")
+    court_count = st.selectbox(T["courts_label"], [2, 3, 4], index=1, key="sb_court_count")
     total_time_str = st.selectbox(T["total_time_label"], [T["t_90"], T["t_120"]], index=1, key="sb_total_time")
     total_time = 90 if "90" in total_time_str else 120
-    match_time = st.selectbox(T["match_time_label"],, index=1, key="sb_match_time")
+    match_time = st.selectbox(T["match_time_label"], [20, 30], index=1, key="sb_match_time")
 
 with col_players:
     st.markdown(f"### {T['mgmt_title']} ({len(st.session_state.players)})")
     
-    col_add_input, col_add_btn = st.columns()
+    col_add_input, col_add_btn = st.columns([3, 1])
     with col_add_input:
         new_player = st.text_input("Nom", key="add_player_input", label_visibility="collapsed", placeholder=T["add_placeholder"])
     with col_add_btn:
@@ -141,7 +141,7 @@ with col_players:
                 save_players(st.session_state.players)
                 st.rerun()
 
-    col_del_select, col_del_btn = st.columns()
+    col_del_select, col_del_btn = st.columns([3, 1])
     with col_del_select:
         player_to_delete = st.selectbox("Supprimer", [T["del_placeholder"]] + sorted(st.session_state.players), label_visibility="collapsed", key="sb_del_player")
     with col_del_btn:
@@ -212,8 +212,7 @@ def run_rotation():
         last_bench = list(bench_players)
     st.session_state.rounds_results = rounds
 
-def generate_pdf(rounds):
-    pdf_filename = "Padel_Addict_Planning.pdf"
+def generate_pdf_bytes(rounds):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Helvetica", "B", 18)
@@ -230,7 +229,7 @@ def generate_pdf(rounds):
 
         pdf.set_font("Helvetica", "", 10)
         for c in r['courts']:
-            match_txt = f"  {T['pdf_court']} {c['court']}:  {c['t1']} & {c['t1']}   VS   {c['t2']} & {c['t2']}"
+            match_txt = f"  {T['pdf_court']} {c['court']}:  {c['t1'][0]} & {c['t1'][1]}   VS   {c['t2'][0]} & {c['t2'][1]}"
             pdf.cell(0, 6, match_txt, ln=True)
         
         if r['bench']:
@@ -242,26 +241,31 @@ def generate_pdf(rounds):
             pdf.set_text_color(0, 0, 0)
         pdf.ln(5)
 
-    pdf.output(pdf_filename)
-    return pdf_filename
+    return pdf.output(dest='S')
 
 st.markdown("---")
 
-# Boutons principaux présentés sur une seule ligne robuste
-btn_gen = st.button(T["btn_generate"], use_container_width=True, type="primary")
-if btn_gen:
+if st.button(T["btn_generate"], use_container_width=True, type="primary"):
     run_rotation()
 
-btn_rst = st.button(T["btn_reset"], use_container_width=True)
-if btn_rst:
+if st.button(T["btn_reset"], use_container_width=True):
     st.session_state.rounds_results = None
     st.rerun()
-    if st.session_state.rounds_results:
-pdf_path = generate_pdf(st.session_state.rounds_results)
-with open(pdf_path, "rb") as f:
-st.rerun()st.rerun()
-label=T["btn_download"],
-data=f,
+
+if st.session_state.rounds_results:
+    pdf_data = generate_pdf_bytes(st.session_state.rounds_results)
+    st.download_button(label=T["btn_download"],
+data=pdf_data,
+file_name="Padel_Addict_Planning.pdf",
+mime="application/pdf",
+use_container_width=True
+)label=T["btn_download"],
+data=pdf_data,
+file_name="Padel_Addict_Planning.pdf",
+mime="application/pdf",
+use_container_width=True
+)label=T["btn_download"],
+data=pdf_data,
 file_name="Padel_Addict_Planning.pdf",
 mime="application/pdf",
 use_container_width=True
