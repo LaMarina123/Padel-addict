@@ -245,14 +245,15 @@ def generate_pdf_bytes(rounds):
 
 st.markdown("---")
 
-if st.button(T["btn_generate"], use_container_width=True, type="primary"):
-    run_rotation()
-
-if st.button(T["btn_reset"], use_container_width=True):
-    st.session_state.rounds_results = None
-    st.rerun()
-
-if st.session_state.rounds_results:pdf_data = generate_pdf_bytes(st.session_state.rounds_results)
+col_b1, col_b2 = st.columns(2)
+with col_b1:
+    if st.button(T["btn_generate"], use_container_width=True, type="primary"):
+        run_rotation()
+with col_b2:
+    if st.button(T["btn_reset"], use_container_width=True):
+        st.session_state.rounds_results = None
+        st.rerun()if st.session_state.rounds_results:
+pdf_data = generate_pdf_bytes(st.session_state.rounds_results)
 st.download_button(
 label=T["btn_download"],
 data=pdf_data,
