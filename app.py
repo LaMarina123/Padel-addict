@@ -273,27 +273,4 @@ data=f,
 file_name="Padel_Addict_Planning.pdf",
 mime="application/pdf",
 use_container_width=True
-)pdf.set_text_color(0, 0, 0)
-pdf.ln(5)
-pdf.output(pdf_filename)
-return pdf_filename
-st.markdown("---")
-col_b1, col_b2, col_b3 = st.columns(3)
-with col_b1:
-if st.button(T["btn_generate"], use_container_width=True, type="primary", key="btn_generate_matches"):
-run_rotation()
-with col_b2:
-if st.button(T["btn_reset"], use_container_width=True, key="btn_reset_draws"):
-st.session_state.rounds_results = None
-st.rerun()
-if st.session_state.rounds_results:
-pdf_path = generate_pdf(st.session_state.rounds_results)
-with col_b3:
-with open(pdf_path, "rb") as f:
-st.download_button(
-label=T["btn_download"],
-data=f,
-file_name="Padel_Addict_Planning.pdf",
-mime="application/pdf",
-use_container_width=True
 )
