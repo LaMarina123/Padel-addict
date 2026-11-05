@@ -13,7 +13,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-col_logo, col_title = st.columns()
+col_logo, col_title = st.columns([1, 4])
 with col_logo:
     logo_path = os.path.expanduser("~/Downloads/logo.png")
     if os.path.exists(logo_path):
@@ -63,16 +63,16 @@ col_config, col_players = st.columns(2)
 
 with col_config:
     st.markdown("### ⚙️ Paramètres de Session")
-    court_count = st.selectbox("Nombre de terrains disponibles :",, index=1, key="sb_court_count")
+    court_count = st.selectbox("Nombre de terrains disponibles :", [2, 3, 4], index=1, key="sb_court_count")
     total_time_str = st.selectbox("Temps de location total :", ["1h30 (90 min)", "2h00 (120 min)"], index=1, key="sb_total_time")
     total_time = 90 if "90" in total_time_str else 120
-    match_time = st.selectbox("Durée d'une partie :",, index=1, key="sb_match_time")
+    match_time = st.selectbox("Durée d'une partie :", [20, 30], index=1, key="sb_match_time")
 
 with col_players:
     st.markdown(f"### 👥 Gestion de la Liste Padel Addict ({len(st.session_state.players)})")
     
     # Ajouter un joueur
-    col_add_input, col_add_btn = st.columns()
+    col_add_input, col_add_btn = st.columns([3, 1])
     with col_add_input:
         new_player = st.text_input("Nom du nouveau joueur :", key="add_player_input", label_visibility="collapsed", placeholder="Nom du joueur...")
     with col_add_btn:
@@ -84,7 +84,7 @@ with col_players:
                 st.rerun()
 
     # Supprimer un joueur de la liste globale
-    col_del_select, col_del_btn = st.columns()
+    col_del_select, col_del_btn = st.columns([3, 1])
     with col_del_select:
         player_to_delete = st.selectbox("Supprimer un joueur de la base :", ["-- Sélectionner un joueur à retirer --"] + sorted(st.session_state.players), label_visibility="collapsed", key="sb_del_player")
     with col_del_btn:
@@ -179,7 +179,7 @@ def generate_pdf(rounds):
 
         pdf.set_font("Helvetica", "", 10)
         for c in r['courts']:
-            match_txt = f"  Terrain {c['court']}:  {c['t1']} & {c['t1']}   VS   {c['t2']} & {c['t2']}"
+            match_txt = f"  Terrain {c['court']}:  {c['t1'][0]} & {c['t1'][1]}   VS   {c['t2'][0]} & {c['t2'][1]}"
             pdf.cell(0, 6, match_txt, ln=True)
         
         if r['bench']:
