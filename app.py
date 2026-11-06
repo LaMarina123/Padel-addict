@@ -38,7 +38,7 @@ def load_players():
             if players:
                 return players
     
-    # Nouvelle liste personnalisée de 25 joueurs
+    # Liste personnalisée de vos 25 joueurs
     default_players = [
         "Gerald", "Marie-Noelle", "Rachide", "Massimo", "Claude",
         "Geoff", "Joanna", "Bernard", "Chris", "Fausta",
@@ -121,11 +121,12 @@ def run_rotation():
     rounds = []
     bench_count = {p: 0 for p in selected_players}
     
-    # Structure pour suivre l'historique des partenaires associés : { joueur: set(partenaires_deja_eus) }
+    # Historique strict pour empêcher les doublons : { joueur: set(partenaires_déjà_eus) }
     partner_history = {p: set() for p in selected_players}
     last_bench = []
 
     for r in range(1, total_rounds + 1):
+        # 1. Sélection des joueurs du tour en privilégiant ceux qui sont le plus allés sur le banc
         pool = list(selected_players)
         round_players = []
 
@@ -143,9 +144,9 @@ def run_rotation():
         for p in bench_players:
             bench_count[p] += 1
 
-        # Algorithme d'attribution des terrains sans répétition de partenaire
+        # 2. Assignation des partenaires sans répétition
         success = False
-        for _ in range(500): 
+        for _ in range(1000):  # Essais successifs si impasse mathématique ponctuelle
             random.shuffle(round_players)
             temp_courts = []
             valid_distribution = True
@@ -153,6 +154,7 @@ def run_rotation():
 
             for c in range(1, court_count + 1):
                 p1 = available_players.pop(0)
+                # On cherche un partenaire p2 qui n'a jamais joué avec p1
                 p2 = next((p for p in available_players if p not in partner_history[p1]), None)
                 if not p2:
                     valid_distribution = False
@@ -160,6 +162,7 @@ def run_rotation():
                 available_players.remove(p2)
 
                 p3 = available_players.pop(0)
+                # On cherche un partenaire p4 qui n'a jamais joué avec p3
                 p4 = next((p for p in available_players if p not in partner_history[p3]), None)
                 if not p4:
                     valid_distribution = False
@@ -173,6 +176,7 @@ def run_rotation():
                 })
 
             if valid_distribution:
+                # Si le tour complet est valide, on enregistre les duos dans l'historique
                 for court in temp_courts:
                     t1_p1, t1_p2 = court["t1"]
                     t2_p1, t2_p2 = court["t2"]
@@ -186,7 +190,7 @@ def run_rotation():
                 break
 
         if not success:
-            st.warning(f"⚠️ Contrainte stricte de partenaire unique difficile à respecter au Tour {r}. Réinitialisation partielle requise.")
+            st.warning(f"⚠️ Impossible de trouver des partenaires 100% uniques pour le Tour {r}. Réinitialisation locale appliquée.")
             random.shuffle(round_players)
             courts_data = []
             for c in range(1, court_count + 1):
@@ -236,49 +240,50 @@ def generate_pdf(rounds):
             pdf.set_text_color(0, 0, 0)
         pdf.ln(5)
 
-    pdf.output(pdf_filename)
-    return pdf_filename
-# --- INTERFACE DES BOUTONS DE CONTRÔLE ---
+    pdf.output(pdf_filename)return pdf_filename
+
+--- INTERFACE DES BOUTONS DE CONTRÔLE ---
+
 st.markdown("---")
 col_b1, col_b2, col_b3 = st.columns(3)
-
 with col_b1:
-    if st.button("🎲 Générer les Matchs", use_container_width=True, type="primary", key="btn_generate_matches"):
-        run_rotation()
-
+if st.button("🎲 Générer les Matchs", use_container_width=True, type="primary", key="btn_generate_matches"):
+run_rotation()
 with col_b2:
-    if st.button("🔄 Réinitialiser les Tirages", use_container_width=True, key="btn_reset_draws"):
-        st.session_state.rounds_results = None
-        st.rerun()
+if st.button("🔄 Réinitialiser les Tirages", use_container_width=True, key="btn_reset_draws"):
+st.session_state.rounds_results = None
+st.rerun()
 
-# --- AFFICHAGE ET EXPORT DU PLANNING ---
+--- AFFICHAGE ET EXPORT DU PLANNING ---
+
 if st.session_state.rounds_results:
-    with col_b3:
-        pdf_file = generate_pdf(st.session_state.rounds_results)
-        with open(pdf_file, "rb") as f:
-            st.download_button(
-                label="📥 Télécharger le Planning (PDF)",
-                data=f,
-                file_name="Planning_Padel_Addict.pdf",
-                mime="application/pdf",
-                use_container_width=True
-            )
+with col_b3:
+pdf_file = generate_pdf(st.session_state.rounds_results)
+with open(pdf_file, "rb") as f:
+st.download_button(
+label="📥 Télécharger le Planning (PDF)",
+data=f,
+file_name="Planning_Padel_Addict.pdf",
+mime="application/pdf",
+use_container_width=True
+)
+st.markdown("### 🗓️ Programme des Matchs")
+for r in st.session_state.rounds_results:
+st.markdown(f"🔄 TOUR {r['round_num']} ({r['duration_str']})", unsafe_allow_html=True)
+court_cols = st.columns(court_count)
+for i, c in enumerate(r['courts']):
+with court_cols[i]:
+st.markdown(f"""
 
-    st.markdown("### 🗓️ Programme des Matchs")
-    for r in st.session_state.rounds_results:
-        st.markdown(f"<div class='round-header'>🔄 TOUR {r['round_num']} ({r['duration_str']})</div>", unsafe_allow_html=True)
-        
-        court_cols = st.columns(court_count)
-        for i, c in enumerate(r['courts']):
-            with court_cols[i]:
-                st.markdown(f"""
-                <div class='court-card'>
-                    <b>🎾 Terrain {c['court']}</b><br><br>
-                    👥 <b>Équipe 1 :</b> {c['t1']} & {c['t1']}<br>
-                    <span style='color:red; font-weight:bold;'>VS</span><br>
-                    👥 <b>Équipe 2 :</b> {c['t2']} & {c['t2']}
-                </div>
-                """, unsafe_allow_html=True)
-        
-        if r['bench']:
-            st.markdown(f"<div class='bench-card'>⏳ <b>Sur le banc pour ce tour :</b> {', '.join(r['bench'])}</div>", unsafe_allow_html=True)
+🎾 Terrain {c['court']}
+
+
+👥 Équipe 1 : {c['t1'][0]} & {c['t1'][1]}
+
+VS
+
+👥 Équipe 2 : {c['t2'][0]} & {c['t2'][1]}
+
+""", unsafe_allow_html=True)
+if r['bench']:
+st.markdown(f"⏳ Sur le banc pour ce tour : {', '.join(r['bench'])}", unsafe_allow_html=True)
