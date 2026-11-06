@@ -240,7 +240,8 @@ def generate_pdf(rounds):
             pdf.set_text_color(0, 0, 0)
         pdf.ln(5)
 
-    pdf.output(pdf_filename)return pdf_filename
+    pdf.output(pdf_filename)
+    return pdf_filename
 
 --- INTERFACE DES BOUTONS DE CONTRÔLE ---
 
