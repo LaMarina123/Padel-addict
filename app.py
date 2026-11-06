@@ -211,7 +211,7 @@ def run_rotation():
                         p2 = candidate
                         break
                 if not p2:
-                    p2 = available[0]
+                    p2 = available
                 available.remove(p2)
                 
                 p3 = available.pop(0)
@@ -221,7 +221,7 @@ def run_rotation():
                         p4 = candidate
                         break
                 if not p4:
-                    p4 = available[0]
+                    p4 = available
                 available.remove(p4)
                 
                 temp_courts.append({
