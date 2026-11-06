@@ -247,16 +247,27 @@ with col_b2:
         st.rerun()
 
 # --- AFFICHAGE ET EXPORT DU PLANNING ---
-if st.session_state.rounds_results:with col_b3:
-pdf_file = generate_pdf(st.session_state.rounds_results)
-with open(pdf_file, "rb") as f:
-st.download_button(
-label="📥 Télécharger le Planning (PDF)",
-data=f,
-file_name="Planning_Padel_Addict.pdf",
-mime="application/pdf",
-use_container_width=True
-)
+if st.session_state.rounds_results:
+    with col_b3:
+        pdf_file = generate_pdf(st.session_state.rounds_results)
+        with open(pdf_file, "rb") as f:
+            st.download_button(
+                label="📥 Télécharger le Planning (PDF)",
+                data=f,
+                file_name="Planning_Padel_Addict.pdf",
+                mime="application/pdf",
+                use_container_width=True
+            )if st.session_state.rounds_results:
+    with col_b3:
+        pdf_file = generate_pdf(st.session_state.rounds_results)
+        with open(pdf_file, "rb") as f:
+            st.download_button(
+                label="📥 Télécharger le Planning (PDF)",
+                data=f,
+                file_name="Planning_Padel_Addict.pdf",
+                mime="application/pdf",
+                use_container_width=True
+            )
 st.markdown("### 🗓️ Programme des Matchs")
 for r in st.session_state.rounds_results:
 st.markdown(f"🔄 TOUR {r['round_num']} ({r['duration_str']})", unsafe_allow_html=True)
