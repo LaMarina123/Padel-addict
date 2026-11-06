@@ -201,40 +201,7 @@ def run_rotation():
 
     st.session_state.rounds_results = rounds
 
-def generate_pdf(rounds):
-    pdf_filename = "Padel_Addict_Planning.pdf"
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_font("Helvetica", "B", 18)
-    pdf.cell(0, 10, "Padel Addict - Planning des Matchs", ln=True, align="C")
-    pdf.ln(10)
-
-    for r in rounds:
-        pdf.set_font("Helvetica", "B", 12)
-        pdf.set_fill_color(44, 62, 80)
-        pdf.set_text_color(255, 255, 255)
-        pdf.cell(0, 8, f"TOUR {r['round_num']} ({r['duration_str']})", ln=True, fill=True)
-        pdf.set_text_color(0, 0, 0)
-        pdf.ln(2)
-
-        pdf.set_font("Helvetica", "", 10)
-        for c in r['courts']:
-            match_txt = f"  Terrain {c['court']}:  {c['t1'][0]} & {c['t1'][1]}   VS   {c['t2'][0]} & {c['t2'][1]}"
-            pdf.cell(0, 6, match_txt, ln=True)
-        
-        if r['bench']:
-            pdf.ln(1)
-            pdf.set_font("Helvetica", "I", 10)
-            pdf.set_text_color(125, 102, 8)
-            bench_txt = f"  -> Banc (Prioritaires): {', '.join(r['bench'])}"
-            pdf.cell(0, 6, bench_txt, ln=True)
-            pdf.set_text_color(0, 0, 0)
-        pdf.ln(5)
-
-    pdf.output(pdf_filename)
-    return pdf_filename
-
-st.markdown("---")
+def generate_pdfst.markdown("---")
 col_b1, col_b2, col_b3 = st.columns(3)
 
 with col_b1:
@@ -257,36 +224,25 @@ if st.session_state.rounds_results:
                 file_name="Planning_Padel_Addict.pdf",
                 mime="application/pdf",
                 use_container_width=True
-            )if st.session_state.rounds_results:
-    with col_b3:
-        pdf_file = generate_pdf(st.session_state.rounds_results)
-        with open(pdf_file, "rb") as f:
-            st.download_button(
-                label="📥 Télécharger le Planning (PDF)",
-                data=f,
-                file_name="Planning_Padel_Addict.pdf",
-                mime="application/pdf",
-                use_container_width=True
             )
-st.markdown("### 🗓️ Programme des Matchs")
-for r in st.session_state.rounds_results:
-st.markdown(f"🔄 TOUR {r['round_num']} ({r['duration_str']})", unsafe_allow_html=True)
-# Affichage des terrains côte à côte
-court_cols = st.columns(court_count)
-for i, c in enumerate(r['courts']):
-with court_cols[i]:
-st.markdown(f"""
 
-🎾 Terrain {c['court']}
-
-
-👥 Équipe 1 : {c['t1'][0]} & {c['t1'][1]}
-
-VS
-
-👥 Équipe 2 : {c['t2'][0]} & {c['t2'][1]}
-
-""", unsafe_allow_html=True)
-# Affichage du banc si nécessaire
-if r['bench']:
-st.markdown(f"⏳ Sur le banc pour ce tour : {', '.join(r['bench'])}", unsafe_allow_html=True)
+    st.markdown("### 🗓️ Programme des Matchs")
+    for r in st.session_state.rounds_results:
+        st.markdown(f"<div class='round-header'>🔄 TOUR {r['round_num']} ({r['duration_str']})</div>", unsafe_allow_html=True)
+        
+        # Affichage des terrains côte à côte
+        court_cols = st.columns(court_count)
+        for i, c in enumerate(r['courts']):
+            with court_cols[i]:
+                st.markdown(f"""
+                <div class='court-card'>
+                    <b>🎾 Terrain {c['court']}</b><br><br>
+                    👥 <b>Équipe 1 :</b> {c['t1'][0]} & {c['t1'][1]}<br>
+                    <span style='color:red; font-weight:bold;'>VS</span><br>
+                    👥 <b>Équipe 2 :</b> {c['t2'][0]} & {c['t2'][1]}
+                </div>
+                """, unsafe_allow_html=True)
+        
+        # Affichage du banc si nécessaire
+        if r['bench']:
+            st.markdown(f"<div class='bench-card'>⏳ <b>Sur le banc pour ce tour :</b> {', '.join(r['bench'])}</div>", unsafe_allow_html=True)
