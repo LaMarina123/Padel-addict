@@ -31,7 +31,6 @@ with col_title:
 DB_FILE = "players_list.txt"
 
 def load_players():
-    """Charge les joueurs depuis le fichier local ou crée la liste par défaut."""
     if os.path.exists(DB_FILE):
         with open(DB_FILE, "r", encoding="utf-8") as f:
             players = [line.strip() for line in f.readlines() if line.strip()]
@@ -47,12 +46,10 @@ def load_players():
     return default_players
 
 def save_players(players_list):
-    """Sauvegarde la liste actuelle des joueurs dans le fichier local."""
     with open(DB_FILE, "w", encoding="utf-8") as f:
         for player in sorted(players_list):
             f.write(f"{player}\n")
 
-# Initialisation des variables session Streamlit
 if "players" not in st.session_state:
     st.session_state.players = load_players()
 
@@ -71,7 +68,6 @@ with col_config:
 with col_players:
     st.markdown(f"### 👥 Gestion de la Liste Padel Addict ({len(st.session_state.players)})")
     
-    # Ajouter un joueur
     col_add_input, col_add_btn = st.columns([3, 1])
     with col_add_input:
         new_player = st.text_input("Nom du nouveau joueur :", key="add_player_input", label_visibility="collapsed", placeholder="Nom du joueur...")
@@ -83,7 +79,6 @@ with col_players:
                 save_players(st.session_state.players)
                 st.rerun()
 
-    # Supprimer un joueur de la liste globale
     col_del_select, col_del_btn = st.columns([3, 1])
     with col_del_select:
         player_to_delete = st.selectbox("Supprimer un joueur de la base :", ["-- Sélectionner un joueur à retirer --"] + sorted(st.session_state.players), label_visibility="collapsed", key="sb_del_player")
@@ -95,15 +90,12 @@ with col_players:
                 st.rerun()
 
     st.markdown("---")
-    
-    # Récupération de l'état actuel pour calculer le nombre de joueurs présents
     current_selected = st.session_state.get("ms_players_today", [])
     
-    # Menu Déroulant / Multi-select pour les joueurs du jour avec compteur dynamique
     selected_players = st.multiselect(
         f"🎯 Sélectionnez les joueurs présents aujourd'hui ({len(current_selected)}) :",
         options=sorted(st.session_state.players),
-        default=[],  
+        default=current_selected,  
         placeholder="Choisissez les joueurs...",
         key="ms_players_today"
     )
@@ -117,9 +109,13 @@ def run_rotation():
     total_rounds = total_time // match_time
     rounds = []
     bench_count = {p: 0 for p in selected_players}
+    
+    # Structure pour suivre l'historique des partenaires associés : { joueur: set(partenaires_deja_eus) }
+    partner_history = {p: set() for p in selected_players}
     last_bench = []
 
     for r in range(1, total_rounds + 1):
+        # Séparation équitable : Gestion de la priorité pour le banc
         pool = list(selected_players)
         round_players = []
 
@@ -137,19 +133,63 @@ def run_rotation():
         for p in bench_players:
             bench_count[p] += 1
 
-        random.shuffle(round_players)
-        courts_data = []
-        for c in range(1, court_count + 1):
-            t1_p1 = round_players.pop(0)
-            t1_p2 = round_players.pop(0)
-            t2_p1 = round_players.pop(0)
-            t2_p2 = round_players.pop(0)
+        # Algorithme d'attribution des terrains sans répétition de partenaire
+        success = False
+        # On tente plusieurs fois de mélanger si la contrainte de blocage des paires échoue
+        for _ in range(500): 
+            random.shuffle(round_players)
+            temp_courts = []
+            valid_distribution = True
+            available_players = list(round_players)
 
-            courts_data.append({
-                "court": c,
-                "t1": [t1_p1, t1_p2],
-                "t2": [t2_p1, t2_p2]
-            })
+            for c in range(1, court_count + 1):
+                # Trouver une paire 1 valide
+                p1 = available_players.pop(0)
+                p2 = next((p for p in available_players if p not in partner_history[p1]), None)
+                if not p2:
+                    valid_distribution = False
+                    break
+                available_players.remove(p2)
+
+                # Trouver une paire 2 valide
+                p3 = available_players.pop(0)
+                p4 = next((p for p in available_players if p not in partner_history[p3]), None)
+                if not p4:
+                    valid_distribution = False
+                    break
+                available_players.remove(p4)
+
+                temp_courts.append({
+                    "court": c,
+                    "t1": [p1, p2],
+                    "t2": [p3, p4]
+                })
+
+            if valid_distribution:
+                # Enregistrement des paires validées dans l'historique permanent
+                for court in temp_courts:
+                    t1_p1, t1_p2 = court["t1"]
+                    t2_p1, t2_p2 = court["t2"]
+                    partner_history[t1_p1].add(t1_p2)
+                    partner_history[t1_p2].add(t1_p1)
+                    partner_history[t2_p1].add(t2_p2)
+                    partner_history[t2_p2].add(t2_p1)
+                
+                courts_data = temp_courts
+                success = True
+                break
+
+        if not success:
+            st.warning(f"⚠️ Contrainte stricte de partenaire unique difficile à respecter au Tour {r}. Réinitialisation partielle requise.")
+            # Fallback automatique : répartition classique aléatoire en cas d'impasse mathématique complète
+            random.shuffle(round_players)
+            courts_data = []
+            for c in range(1, court_count + 1):
+                courts_data.append({
+                    "court": c,
+                    "t1": [round_players.pop(0), round_players.pop(0)],
+                    "t2": [round_players.pop(0), round_players.pop(0)]
+                })
 
         rounds.append({
             "round_num": r,
@@ -206,14 +246,36 @@ with col_b2:
         st.session_state.rounds_results = None
         st.rerun()
 
-if st.session_state.rounds_results:
-    pdf_path = generate_pdf(st.session_state.rounds_results)
-    with col_b3:
-        with open(pdf_path, "rb") as f:
-            st.download_button(
-                label="📥 Télécharger le Planning",
-                data=f,
-                file_name="Padel_Addict_Planning.pdf",
-                mime="application/pdf",
-                use_container_width=True
-            )
+# --- AFFICHAGE ET EXPORT DU PLANNING ---
+if st.session_state.rounds_results:with col_b3:
+pdf_file = generate_pdf(st.session_state.rounds_results)
+with open(pdf_file, "rb") as f:
+st.download_button(
+label="📥 Télécharger le Planning (PDF)",
+data=f,
+file_name="Planning_Padel_Addict.pdf",
+mime="application/pdf",
+use_container_width=True
+)
+st.markdown("### 🗓️ Programme des Matchs")
+for r in st.session_state.rounds_results:
+st.markdown(f"🔄 TOUR {r['round_num']} ({r['duration_str']})", unsafe_allow_html=True)
+# Affichage des terrains côte à côte
+court_cols = st.columns(court_count)
+for i, c in enumerate(r['courts']):
+with court_cols[i]:
+st.markdown(f"""
+
+🎾 Terrain {c['court']}
+
+
+👥 Équipe 1 : {c['t1'][0]} & {c['t1'][1]}
+
+VS
+
+👥 Équipe 2 : {c['t2'][0]} & {c['t2'][1]}
+
+""", unsafe_allow_html=True)
+# Affichage du banc si nécessaire
+if r['bench']:
+st.markdown(f"⏳ Sur le banc pour ce tour : {', '.join(r['bench'])}", unsafe_allow_html=True)
