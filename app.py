@@ -170,8 +170,6 @@ def run_rotation():
     total_rounds = total_time // match_time
     rounds = []
     bench_count = {p: 0 for p in selected_players}
-    
-    # Structure de suivi : { joueur: set(partenaires_déjà_eus) }
     partner_history = {p: set() for p in selected_players}
     last_bench = []
 
@@ -179,27 +177,21 @@ def run_rotation():
         pool = list(selected_players)
         round_players = []
 
-        # Réintégration prioritaires du banc précédent
         if last_bench:
             for p in last_bench:
                 if p in pool and len(round_players) < players_needed:
                     round_players.append(p)
                     pool.remove(p)
 
-        # Compléter avec ceux qui ont le moins joué/attendu
         pool.sort(key=lambda x: bench_count[x], reverse=True)
         while len(round_players) < players_needed and pool:
             round_players.append(pool.pop(0))
 
-        # Définir le banc pour ce tour
         bench_players = [p for p in selected_players if p not in round_players]
         for p in bench_players:
             bench_count[p] += 1
 
-        # ALGORITHME DE CORRESPONDANCE DES PARTENAIRES UNIQUE
-        # On tente de faire des paires optimales jusqu'à 50 tentatives aléatoires par tour s'il y a un blocage historique
         courts_data = []
-        success = False
         
         for attempt in range(50):
             available = list(round_players)
@@ -213,19 +205,15 @@ def run_rotation():
                     break
                 
                 p1 = available.pop(0)
-                # Trouver un partenaire p2 qui n'a pas encore joué avec p1
                 p2 = None
                 for candidate in available:
                     if candidate not in partner_history[p1]:
                         p2 = candidate
                         break
-                
-                # Si aucun candidat parfait, on prend le premier disponible (sécurité anti-blocage)
                 if not p2:
                     p2 = available[0]
                 available.remove(p2)
                 
-                # Faire la même chose pour la deuxième équipe sur le terrain
                 p3 = available.pop(0)
                 p4 = None
                 for candidate in available:
@@ -243,27 +231,29 @@ def run_rotation():
                 })
             
             if local_history_ok:
-                courts_data = temp_courtssuccess = True
-break
-# Enregistrement des nouveaux partenaires dans l'historique global de la session
-for court in courts_data:
-t1_p1, t1_p2 = court["t1"][0], court["t1"][1]
-t2_p1, t2_p2 = court["t2"][0], court["t2"][1]
-partner_history[t1_p1].add(t1_p2)
-partner_history[t1_p2].add(t1_p1)
-partner_history[t2_p1].add(t2_p2)
-partner_history[t2_p2].add(t2_p1)
-rounds.append({
-"round_num": r,
-"duration_str": f"{match_time} min",
-"courts": courts_data,
-"bench": bench_players
-})
-last_bench = list(bench_players)
-st.session_state.rounds_results = rounds
+                courts_data = temp_courts
+                break
+                
+        for court in courts_data:
+            t1_p1, t1_p2 = court["t1"][0], court["t1"][1]
+            t2_p1, t2_p2 = court["t2"][0], court["t2"][1]
+            partner_history[t1_p1].add(t1_p2)
+            partner_history[t1_p2].add(t1_p1)
+            partner_history[t2_p1].add(t2_p2)
+            partner_history[t2_p2].add(t2_p1)
+
+        rounds.append({
+            "round_num": r,
+            "duration_str": f"{match_time} min",
+            "courts": courts_data,
+            "bench": bench_players
+        })
+        last_bench = list(bench_players)
+
+    st.session_state.rounds_results = rounds
+
 def generate_pdf_bytes(rounds):
-pdf = FPDF()
-pdf.add_page()
+    pdf = FPDF()pdf.add_page()
 pdf.set_font("Helvetica", "B", 18)
 pdf.cell(0, 10, T["pdf_title"], ln=True, align="C")
 pdf.ln(10)
