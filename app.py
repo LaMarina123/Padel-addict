@@ -211,7 +211,7 @@ def run_rotation():
                         p2 = candidate
                         break
                 if not p2:
-                    p2 = available
+                    p2 = available[0]
                 available.remove(p2)
                 
                 p3 = available.pop(0)
@@ -221,7 +221,7 @@ def run_rotation():
                         p4 = candidate
                         break
                 if not p4:
-                    p4 = available
+                    p4 = available[0]
                 available.remove(p4)
                 
                 temp_courts.append({
@@ -266,7 +266,9 @@ pdf.set_text_color(0, 0, 0)
 pdf.ln(2)
 pdf.set_font("Helvetica", "", 10)
 for c in r['courts']:
-match_txt = f"  {T['pdf_court']} {c['court']}:  {c['t1'][0]} & {c['t1'][1]}   VS   {c['t2'][0]} & {c['t2'][1]}"
+p1, p2 = c['t1'][0], c['t1'][1]
+p3, p4 = c['t2'][0], c['t2'][1]
+match_txt = f"  {T['pdf_court']} {c['court']}:  {p1} & {p2}   VS   {p3} & {p4}"
 pdf.cell(0, 6, match_txt, ln=True)
 if r['bench']:
 pdf.ln(1)
