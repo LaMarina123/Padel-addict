@@ -251,36 +251,34 @@ with col_b2:
         st.session_state.rounds_results = None
         st.rerun()
 
---- AFFICHAGE ET EXPORT DU PLANNING ---
-
+# --- AFFICHAGE ET EXPORT DU PLANNING ---
 if st.session_state.rounds_results:
-with col_b3:
-pdf_file = generate_pdf(st.session_state.rounds_results)
-with open(pdf_file, "rb") as f:
-st.download_button(
-label="📥 Télécharger le Planning (PDF)",
-data=f,
-file_name="Planning_Padel_Addict.pdf",
-mime="application/pdf",
-use_container_width=True
-)
-st.markdown("### 🗓️ Programme des Matchs")
-for r in st.session_state.rounds_results:
-st.markdown(f"🔄 TOUR {r['round_num']} ({r['duration_str']})", unsafe_allow_html=True)
-court_cols = st.columns(court_count)
-for i, c in enumerate(r['courts']):
-with court_cols[i]:
-st.markdown(f"""
+    with col_b3:
+        pdf_file = generate_pdf(st.session_state.rounds_results)
+        with open(pdf_file, "rb") as f:
+            st.download_button(
+                label="📥 Télécharger le Planning (PDF)",
+                data=f,
+                file_name="Planning_Padel_Addict.pdf",
+                mime="application/pdf",
+                use_container_width=True
+            )
 
-🎾 Terrain {c['court']}
-
-
-👥 Équipe 1 : {c['t1'][0]} & {c['t1'][1]}
-
-VS
-
-👥 Équipe 2 : {c['t2'][0]} & {c['t2'][1]}
-
-""", unsafe_allow_html=True)
-if r['bench']:
-st.markdown(f"⏳ Sur le banc pour ce tour : {', '.join(r['bench'])}", unsafe_allow_html=True)
+    st.markdown("### 🗓️ Programme des Matchs")
+    for r in st.session_state.rounds_results:
+        st.markdown(f"<div class='round-header'>🔄 TOUR {r['round_num']} ({r['duration_str']})</div>", unsafe_allow_html=True)
+        
+        court_cols = st.columns(court_count)
+        for i, c in enumerate(r['courts']):
+            with court_cols[i]:
+                st.markdown(f"""
+                <div class='court-card'>
+                    <b>🎾 Terrain {c['court']}</b><br><br>
+                    👥 <b>Équipe 1 :</b> {c['t1']} & {c['t1']}<br>
+                    <span style='color:red; font-weight:bold;'>VS</span><br>
+                    👥 <b>Équipe 2 :</b> {c['t2']} & {c['t2']}
+                </div>
+                """, unsafe_allow_html=True)
+        
+        if r['bench']:
+            st.markdown(f"<div class='bench-card'>⏳ <b>Sur le banc pour ce tour :</b> {', '.join(r['bench'])}</div>", unsafe_allow_html=True)
