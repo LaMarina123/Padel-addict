@@ -238,7 +238,6 @@ def generate_pdf(rounds):
 
     pdf.output(pdf_filename)
     return pdf_filename
-
 # --- INTERFACE DES BOUTONS DE CONTRÔLE ---
 st.markdown("---")
 col_b1, col_b2, col_b3 = st.columns(3)
@@ -247,9 +246,10 @@ with col_b1:
     if st.button("🎲 Générer les Matchs", use_container_width=True, type="primary", key="btn_generate_matches"):
         run_rotation()
 
-with col_b2:if st.button("🔄 Réinitialiser les Tirages", use_container_width=True, key="btn_reset_draws"):
-st.session_state.rounds_results = None
-st.rerun()
+with col_b2:
+    if st.button("🔄 Réinitialiser les Tirages", use_container_width=True, key="btn_reset_draws"):
+        st.session_state.rounds_results = None
+        st.rerun()
 
 --- AFFICHAGE ET EXPORT DU PLANNING ---
 
