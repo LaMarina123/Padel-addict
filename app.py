@@ -247,11 +247,12 @@ col_b1, col_b2, col_b3 = st.columns(3)
 
 with col_b1:
     if st.button("🎲 Générer les Matchs", use_container_width=True, type="primary", key="btn_generate_matches"):
-run_rotation()
+        run_rotation()
+
 with col_b2:
-if st.button("🔄 Réinitialiser les Tirages", use_container_width=True, key="btn_reset_draws"):
-st.session_state.rounds_results = None
-st.rerun()
+    if st.button("🔄 Réinitialiser les Tirages", use_container_width=True, key="btn_reset_draws"):
+        st.session_state.rounds_results = None
+        st.rerun()
 if st.session_state.rounds_results:
 with col_b3:
 pdf_file = generate_pdf(st.session_state.rounds_results)
