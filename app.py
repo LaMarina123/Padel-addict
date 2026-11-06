@@ -201,7 +201,42 @@ def run_rotation():
 
     st.session_state.rounds_results = rounds
 
-def generate_pdfst.markdown("---")
+def generate_pdf(rounds):
+    pdf_filename = "Padel_Addict_Planning.pdf"
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Helvetica", "B", 18)
+    pdf.cell(0, 10, "Padel Addict - Planning des Matchs", ln=True, align="C")
+    pdf.ln(10)
+
+    for r in rounds:
+        pdf.set_font("Helvetica", "B", 12)
+        pdf.set_fill_color(44, 62, 80)
+        pdf.set_text_color(255, 255, 255)
+        pdf.cell(0, 8, f"TOUR {r['round_num']} ({r['duration_str']})", ln=True, fill=True)
+        pdf.set_text_color(0, 0, 0)
+        pdf.ln(2)
+
+        pdf.set_font("Helvetica", "", 10)
+        for c in r['courts']:
+            # Correction des index pour afficher proprement Joueur 1 & Joueur 2
+            match_txt = f"  Terrain {c['court']}:  {c['t1'][0]} & {c['t1'][1]}   VS   {c['t2'][0]} & {c['t2'][1]}"
+            pdf.cell(0, 6, match_txt, ln=True)
+        
+        if r['bench']:
+            pdf.ln(1)
+            pdf.set_font("Helvetica", "I", 10)
+            pdf.set_text_color(125, 102, 8)
+            bench_txt = f"  -> Banc (Prioritaires): {', '.join(r['bench'])}"
+            pdf.cell(0, 6, bench_txt, ln=True)
+            pdf.set_text_color(0, 0, 0)
+        pdf.ln(5)
+
+    pdf.output(pdf_filename)
+    return pdf_filename
+
+# --- INTERFACE DES BOUTONS DE CONTRÔLE ---
+st.markdown("---")
 col_b1, col_b2, col_b3 = st.columns(3)
 
 with col_b1:
