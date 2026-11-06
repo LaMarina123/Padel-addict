@@ -79,7 +79,7 @@ LANGUAGES = {
     }
 }
 
-# --- SELECTION DE LA LANGUE ---
+# --- INITIALISATION DE LA LANGUE ---
 if "lang" not in st.session_state:
     st.session_state.lang = "Français"
 
@@ -134,8 +134,24 @@ with col_config:
     t = LANGUAGES[st.session_state.lang]
     st.markdown(t["config_title"])
     
-    st.session_state.lang = st.selectbox(t["lang_select"], ["Français", "English"], index=0 if st.session_state.lang == "Français" else 1)
+    # --- BOUTONS DE SÉLECTION DE LANGUE AVEC MISE EN ÉVIDENCE ---
+    st.markdown(f"**{t['lang_select']}**")
+    col_fr, col_en = st.columns(2)
+    
+    with col_fr:
+        is_fr_active = st.session_state.lang == "Français"
+        if st.button("🇫🇷 Français", use_container_width=True, type="primary" if is_fr_active else "secondary", key="btn_lang_fr"):
+            st.session_state.lang = "Français"
+            st.rerun()
+            
+    with col_en:
+        is_en_active = st.session_state.lang == "English"
+        if st.button("🇬🇧 English", use_container_width=True, type="primary" if is_en_active else "secondary", key="btn_lang_en"):
+            st.session_state.lang = "English"
+            st.rerun()
+            
     t = LANGUAGES[st.session_state.lang]
+    st.markdown("<br>", unsafe_allow_html=True)
     
     court_count = st.selectbox(t["courts_available"], [2, 3, 4], index=0, key="sb_court_count")
     total_time_str = st.selectbox(t["rental_time"], ["1h30 (90 min)", "2h00 (120 min)"], index=0, key="sb_total_time")
