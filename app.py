@@ -32,7 +32,11 @@ LANGUAGES = {
         "del_btn": "🗑️ Supprimer",
         "select_today": "🎯 Sélectionnez les joueurs présents aujourd'hui ({}) :",
         "select_placeholder": "Choisissez les joueurs...",
+        "exclude_expander": "🚫 Exclure un ou plusieurs joueurs d'un tour précis (Optionnel)",
+        "exclude_round_label": "Tour {} ({}) - Joueurs au repos forcé :",
+        "exclude_placeholder": "Aucun joueur exclu",
         "error_min_players": "❌ Il vous faut au moins {} joueurs sélectionnés pour remplir {} terrains (Actuellement : {}).",
+        "error_too_many_excluded": "❌ Tour {} : Trop de joueurs exclus ({}). Il ne reste que {} joueurs actifs pour {} places nécessaires.",
         "warning_fallback": "⚠️ Impossible de trouver des partenaires 100% uniques pour le Tour {}. Réinitialisation locale appliquée.",
         "pdf_title": "PADEL ADDICT - {}",
         "pdf_time": "Heure",
@@ -66,7 +70,11 @@ LANGUAGES = {
         "del_btn": "🗑️ Delete",
         "select_today": "🎯 Select players present today ({}):",
         "select_placeholder": "Choose players...",
+        "exclude_expander": "🚫 Exclude one or more players from a specific round (Optional)",
+        "exclude_round_label": "Round {} ({}) - Forced bench players:",
+        "exclude_placeholder": "No excluded player",
         "error_min_players": "❌ You need at least {} selected players to fill {} courts (Currently: {}).",
+        "error_too_many_excluded": "❌ Round {}: Too many excluded players ({}). Only {} active players left for {} spots needed.",
         "warning_fallback": "⚠️ Unable to find 100% unique partners for Round {}. Local reset applied.",
         "pdf_title": "PADEL ADDICT - {}",
         "pdf_time": "Time",
@@ -204,6 +212,27 @@ with col_players:
         key="ms_players_today"
     )
 
+    # --- NOUVELLE SECTION : EXCLUSIONS PAR TOUR ---
+    excluded_by_round = {}
+    if selected_players:
+        total_rounds_preview = total_time // match_time
+        preview_dt = datetime.combine(session_date, start_time)
+        with st.expander(t["exclude_expander"], expanded=False):
+            for r in range(1, total_rounds_preview + 1):
+                r_time_str = preview_dt.strftime("%H:%M")
+                preview_dt += timedelta(minutes=match_time)
+                
+                # Garde uniquement les joueurs toujours sélectionnés dans la liste du jour
+                prev_excl = [p for p in st.session_state.get(f"excl_round_{r}", []) if p in selected_players]
+                
+                excluded_by_round[r] = st.multiselect(
+                    t["exclude_round_label"].format(r, r_time_str),
+                    options=sorted(selected_players),
+                    default=prev_excl,
+                    placeholder=t["exclude_placeholder"],
+                    key=f"excl_round_{r}"
+                )
+
 def run_rotation():
     t = LANGUAGES[st.session_state.lang]
     players_needed = court_count * 4
@@ -212,6 +241,15 @@ def run_rotation():
         return
 
     total_rounds = total_time // match_time
+
+    # Vérification préalable des exclusions sur chaque tour
+    for r in range(1, total_rounds + 1):
+        excl_count = len(excluded_by_round.get(r, []))
+        active_count = len(selected_players) - excl_count
+        if active_count < players_needed:
+            st.error(t["error_too_many_excluded"].format(r, excl_count, active_count, players_needed))
+            return
+
     rounds = []
     bench_count = {p: 0 for p in selected_players}
     partner_history = {p: set() for p in selected_players}
@@ -222,19 +260,26 @@ def run_rotation():
         round_time_str = current_dt.strftime("%H:%M")
         current_dt += timedelta(minutes=match_time)
 
-        pool = list(selected_players)
+        # Joueurs exclus pour ce tour précis
+        forced_bench = list(excluded_by_round.get(r, []))
+        
+        # Pool uniquement composé des joueurs autorisés à jouer sur ce tour
+        pool = [p for p in selected_players if p not in forced_bench]
         round_players = []
 
+        # Priorité à ceux qui étaient sur le banc au tour précédent (s'ils ne sont pas exclus ici)
         if last_bench:
             for p in last_bench:
                 if p in pool and len(round_players) < players_needed:
                     round_players.append(p)
                     pool.remove(p)
 
+        # Compléter avec les joueurs ayant eu le plus de temps de repos
         pool.sort(key=lambda x: bench_count[x], reverse=True)
         while len(round_players) < players_needed and pool:
             round_players.append(pool.pop(0))
 
+        # Les joueurs sur le banc incluent les exclus + le surplus éventuel
         bench_players = [p for p in selected_players if p not in round_players]
         for p in bench_players:
             bench_count[p] += 1
