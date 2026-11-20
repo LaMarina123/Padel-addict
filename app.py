@@ -256,6 +256,7 @@ def run_rotation():
 
     rounds = []
     bench_count = {p: 0 for p in selected_players}
+    bench_pair_history = {p: {other: 0 for other in selected_players} for p in selected_players}
     partner_history = {p: set() for p in selected_players}
     last_bench = set()
     current_dt = datetime.combine(session_date, start_time)
@@ -266,33 +267,66 @@ def run_rotation():
 
         forced_bench = set(excluded_by_round.get(r, []))
         next_forced_bench = set(excluded_by_round.get(r + 1, []))
-        
-        # Pool des joueurs autorisés à jouer sur ce tour
-        pool = [p for p in selected_players if p not in forced_bench]
-        
-        # Tri intelligent pour garantir l'équilibre strict du banc :
-        # 1. Ceux qui se sont le plus reposés au total (bench_count décroissant)
-        # 2. Ceux qui étaient sur le banc au tour précédent (éviter 2 repos de suite)
-        # 3. Ceux qui seront exclus manuellement au tour suivant (les faire jouer maintenant)
-        # 4. Aléatoire pour départager les égalités
-        pool.sort(
-            key=lambda p: (
-                bench_count[p],
-                1 if p in last_bench else 0,
-                1 if p in next_forced_bench else 0,
-                random.random()
-            ),
-            reverse=True
-        )
-        
-        round_players = pool[:players_needed]
-        bench_players = [p for p in selected_players if p not in round_players]
-        
-        # Mise à jour du compteur total de banc (incluant les exclusions forcées)
+        num_bench_needed = len(selected_players) - players_needed
+        extra_bench_needed = num_bench_needed - len(forced_bench)
+
+        # Candidats potentiels pour aller sur le banc (hors exclusions forcées)
+        candidates = [p for p in selected_players if p not in forced_bench]
+
+        if extra_bench_needed <= 0:
+            bench_players = list(forced_bench)
+        else:
+            # Score de priorité pour aller sur le banc (plus petit = plus prioritaire pour se reposer) :
+            # 1. Moins de pauses cumulées jusqu'ici
+            # 2. N'était pas sur le banc au tour précédent
+            # 3. N'est pas prévu en exclusion forcée au tour suivant
+            def bench_priority(p):
+                return (
+                    bench_count[p],
+                    1 if p in last_bench else 0,
+                    1 if p in next_forced_bench else 0
+                )
+
+            candidates.sort(key=bench_priority)
+            cutoff_score = bench_priority(candidates[extra_bench_needed - 1])
+
+            # Joueurs strictement prioritaires pour le banc + groupe à égalité au seuil
+            locked_bench = [p for p in candidates if bench_priority(p) < cutoff_score]
+            tied_candidates = [p for p in candidates if bench_priority(p) == cutoff_score]
+            slots_to_fill = extra_bench_needed - len(locked_bench)
+
+            # Choisir parmi les égalités la combinaison qui mélange au maximum les groupes sur le banc
+            best_extra_bench = None
+            min_bench_overlap = float("inf")
+
+            for _ in range(500):
+                sample_tied = random.sample(tied_candidates, slots_to_fill)
+                trial_bench = list(forced_bench) + locked_bench + sample_tied
+                overlap = 0
+                for i in range(len(trial_bench)):
+                    for j in range(i + 1, len(trial_bench)):
+                        overlap += bench_pair_history[trial_bench[i]][trial_bench[j]]
+                if overlap < min_bench_overlap:
+                    min_bench_overlap = overlap
+                    best_extra_bench = sample_tied
+                    if min_bench_overlap == 0:
+                        break
+
+            bench_players = list(forced_bench) + locked_bench + best_extra_bench
+
+        # Mise à jour des compteurs de banc et de paires sur le banc
         for p in bench_players:
             bench_count[p] += 1
+        for i in range(len(bench_players)):
+            for j in range(i + 1, len(bench_players)):
+                p1, p2 = bench_players[i], bench_players[j]
+                bench_pair_history[p1][p2] += 1
+                bench_pair_history[p2][p1] += 1
 
-        # Recherche d'une répartition sans aucun partenaire en double
+        bench_set = set(bench_players)
+        round_players = [p for p in selected_players if p not in bench_set]
+
+        # Recherche d'une répartition sur les terrains sans aucun partenaire en double
         best_courts = None
         min_duplicates = float("inf")
 
@@ -339,7 +373,7 @@ def run_rotation():
             "courts": best_courts,
             "bench": sorted(bench_players)
         })
-        last_bench = set(bench_players)
+        last_bench = bench_set
 
     st.session_state.rounds_results = rounds
     st.session_state.bench_stats = bench_count
@@ -466,7 +500,6 @@ if st.session_state.rounds_results:
                 use_container_width=True
             )
 
-    # Aperçu rapide de l'équilibre du banc
     if st.session_state.bench_stats:
         with st.expander(t["stats_expander"], expanded=False):
             stats_sorted = sorted(st.session_state.bench_stats.items(), key=lambda x: (-x[1], x[0]))
