@@ -37,7 +37,7 @@ LANGUAGES = {
         "exclude_placeholder": "Aucun joueur exclu",
         "error_min_players": "❌ Il vous faut au moins {} joueurs sélectionnés pour remplir {} terrains (Actuellement : {}).",
         "error_too_many_excluded": "❌ Tour {} : Trop de joueurs exclus ({}). Il ne reste que {} joueurs actifs pour {} places nécessaires.",
-        "warning_fallback": "⚠️ Impossible de trouver des partenaires 100% uniques pour le Tour {}. Réinitialisation locale appliquée.",
+        "warning_fallback": "⚠️ Contrainte forte sur le Tour {} : {} paire(s) déjà vue(s) au minimum.",
         "pdf_title": "PADEL ADDICT - {}",
         "pdf_time": "Heure",
         "pdf_court": "Terrain {}",
@@ -52,6 +52,7 @@ LANGUAGES = {
         "team1_label": "Équipe 1 :",
         "team2_label": "Équipe 2 :",
         "bench_label": "⏳ <b>Sur le banc pour ce tour :</b> ",
+        "stats_expander": "📊 Vérifier l'équilibre des temps de repos par joueur",
         "logo_info": "💡 Placez 'logo.png' dans Téléchargements."
     },
     "English": {
@@ -75,7 +76,7 @@ LANGUAGES = {
         "exclude_placeholder": "No excluded player",
         "error_min_players": "❌ You need at least {} selected players to fill {} courts (Currently: {}).",
         "error_too_many_excluded": "❌ Round {}: Too many excluded players ({}). Only {} active players left for {} spots needed.",
-        "warning_fallback": "⚠️ Unable to find 100% unique partners for Round {}. Local reset applied.",
+        "warning_fallback": "⚠️ Tight constraint on Round {}: minimum {} repeated pair(s) applied.",
         "pdf_title": "PADEL ADDICT - {}",
         "pdf_time": "Time",
         "pdf_court": "Court {}",
@@ -90,6 +91,7 @@ LANGUAGES = {
         "team1_label": "Team 1:",
         "team2_label": "Team 2:",
         "bench_label": "⏳ <b>On the bench for this round:</b> ",
+        "stats_expander": "📊 Check bench balance per player",
         "logo_info": "💡 Place 'logo.png' in Downloads."
     }
 }
@@ -142,6 +144,9 @@ if "players" not in st.session_state:
 
 if "rounds_results" not in st.session_state:
     st.session_state.rounds_results = None
+
+if "bench_stats" not in st.session_state:
+    st.session_state.bench_stats = None
 
 col_config, col_players = st.columns(2)
 
@@ -212,7 +217,7 @@ with col_players:
         key="ms_players_today"
     )
 
-    # --- NOUVELLE SECTION : EXCLUSIONS PAR TOUR ---
+    # --- SECTION : EXCLUSIONS PAR TOUR ---
     excluded_by_round = {}
     if selected_players:
         total_rounds_preview = total_time // match_time
@@ -222,7 +227,6 @@ with col_players:
                 r_time_str = preview_dt.strftime("%H:%M")
                 preview_dt += timedelta(minutes=match_time)
                 
-                # Garde uniquement les joueurs toujours sélectionnés dans la liste du jour
                 prev_excl = [p for p in st.session_state.get(f"excl_round_{r}", []) if p in selected_players]
                 
                 excluded_by_round[r] = st.multiselect(
@@ -253,99 +257,92 @@ def run_rotation():
     rounds = []
     bench_count = {p: 0 for p in selected_players}
     partner_history = {p: set() for p in selected_players}
-    last_bench = []
+    last_bench = set()
     current_dt = datetime.combine(session_date, start_time)
 
     for r in range(1, total_rounds + 1):
         round_time_str = current_dt.strftime("%H:%M")
         current_dt += timedelta(minutes=match_time)
 
-        # Joueurs exclus pour ce tour précis
-        forced_bench = list(excluded_by_round.get(r, []))
+        forced_bench = set(excluded_by_round.get(r, []))
+        next_forced_bench = set(excluded_by_round.get(r + 1, []))
         
-        # Pool uniquement composé des joueurs autorisés à jouer sur ce tour
+        # Pool des joueurs autorisés à jouer sur ce tour
         pool = [p for p in selected_players if p not in forced_bench]
-        round_players = []
-
-        # Priorité à ceux qui étaient sur le banc au tour précédent (s'ils ne sont pas exclus ici)
-        if last_bench:
-            for p in last_bench:
-                if p in pool and len(round_players) < players_needed:
-                    round_players.append(p)
-                    pool.remove(p)
-
-        # Compléter avec les joueurs ayant eu le plus de temps de repos
-        pool.sort(key=lambda x: bench_count[x], reverse=True)
-        while len(round_players) < players_needed and pool:
-            round_players.append(pool.pop(0))
-
-        # Les joueurs sur le banc incluent les exclus + le surplus éventuel
+        
+        # Tri intelligent pour garantir l'équilibre strict du banc :
+        # 1. Ceux qui se sont le plus reposés au total (bench_count décroissant)
+        # 2. Ceux qui étaient sur le banc au tour précédent (éviter 2 repos de suite)
+        # 3. Ceux qui seront exclus manuellement au tour suivant (les faire jouer maintenant)
+        # 4. Aléatoire pour départager les égalités
+        pool.sort(
+            key=lambda p: (
+                bench_count[p],
+                1 if p in last_bench else 0,
+                1 if p in next_forced_bench else 0,
+                random.random()
+            ),
+            reverse=True
+        )
+        
+        round_players = pool[:players_needed]
         bench_players = [p for p in selected_players if p not in round_players]
+        
+        # Mise à jour du compteur total de banc (incluant les exclusions forcées)
         for p in bench_players:
             bench_count[p] += 1
 
-        success = False
-        for _ in range(1000):  
+        # Recherche d'une répartition sans aucun partenaire en double
+        best_courts = None
+        min_duplicates = float("inf")
+
+        for _ in range(3000):
             random.shuffle(round_players)
             temp_courts = []
-            valid_distribution = True
-            available_players = list(round_players)
-
-            for c in range(1, court_count + 1):
-                p1 = available_players.pop(0)
-                p2 = next((p for p in available_players if p not in partner_history[p1]), None)
-                if not p2:
-                    valid_distribution = False
-                    break
-                available_players.remove(p2)
-
-                p3 = available_players.pop(0)
-                p4 = next((p for p in available_players if p not in partner_history[p3]), None)
-                if not p4:
-                    valid_distribution = False
-                    break
-                available_players.remove(p4)
-
+            duplicates = 0
+            
+            for c in range(court_count):
+                idx = c * 4
+                p1, p2, p3, p4 = round_players[idx:idx+4]
+                if p2 in partner_history[p1]:
+                    duplicates += 1
+                if p4 in partner_history[p3]:
+                    duplicates += 1
                 temp_courts.append({
-                    "court": c,
+                    "court": c + 1,
                     "t1": [p1, p2],
                     "t2": [p3, p4]
                 })
 
-            if valid_distribution:
-                for court in temp_courts:
-                    t1_p1, t1_p2 = court["t1"]
-                    t2_p1, t2_p2 = court["t2"]
-                    partner_history[t1_p1].add(t1_p2)
-                    partner_history[t1_p2].add(t1_p1)
-                    partner_history[t2_p1].add(t2_p2)
-                    partner_history[t2_p2].add(t2_p1)
-                
-                courts_data = temp_courts
-                success = True
-                break
+            if duplicates < min_duplicates:
+                min_duplicates = duplicates
+                best_courts = temp_courts
+                if min_duplicates == 0:
+                    break
 
-        if not success:
-            st.warning(t["warning_fallback"].format(r))
-            random.shuffle(round_players)
-            courts_data = []
-            for c in range(1, court_count + 1):
-                courts_data.append({
-                    "court": c,
-                    "t1": [round_players.pop(0), round_players.pop(0)],
-                    "t2": [round_players.pop(0), round_players.pop(0)]
-                })
+        if min_duplicates > 0:
+            st.warning(t["warning_fallback"].format(r, min_duplicates))
+
+        # Enregistrement des nouveaux partenaires dans l'historique
+        for court in best_courts:
+            t1_p1, t1_p2 = court["t1"]
+            t2_p1, t2_p2 = court["t2"]
+            partner_history[t1_p1].add(t1_p2)
+            partner_history[t1_p2].add(t1_p1)
+            partner_history[t2_p1].add(t2_p2)
+            partner_history[t2_p2].add(t2_p1)
 
         rounds.append({
             "round_num": r,
             "time_str": round_time_str,
             "duration_str": f"{match_time} min",
-            "courts": courts_data,
-            "bench": bench_players
+            "courts": best_courts,
+            "bench": sorted(bench_players)
         })
-        last_bench = list(bench_players)
+        last_bench = set(bench_players)
 
     st.session_state.rounds_results = rounds
+    st.session_state.bench_stats = bench_count
 
 def encode_latin1(text):
     return text.encode("latin-1", "replace").decode("latin-1")
@@ -354,12 +351,10 @@ def generate_pdf(rounds):
     t = LANGUAGES[st.session_state.lang]
     pdf_filename = t["pdf_filename"]
     
-    # Format paysage (Landscape A4 : 297 x 210 mm) comme sur le modele
     pdf = FPDF(orientation="L", unit="mm", format="A4")
     pdf.set_auto_page_break(auto=True, margin=12)
     pdf.add_page()
     
-    # Titre principal
     date_formatted = session_date.strftime("%d/%m/%Y")
     pdf.set_font("Helvetica", "B", 20)
     pdf.set_text_color(0, 0, 0)
@@ -367,12 +362,11 @@ def generate_pdf(rounds):
     pdf.ln(3)
     
     num_courts = len(rounds[0]["courts"]) if rounds else court_count
-    usable_width = 277.0  # 297 - 2 * 10mm marges
+    usable_width = 277.0
     w_time = 28.0
     w_bench = 62.0
     w_court = (usable_width - w_time - w_bench) / num_courts
     
-    # En-tete du tableau (Fond gris moyen)
     header_h = 11.0
     pdf.set_fill_color(205, 208, 211)
     pdf.set_draw_color(130, 130, 130)
@@ -385,7 +379,6 @@ def generate_pdf(rounds):
     pdf.cell(w_bench, header_h, encode_latin1(t["pdf_bench"]), border=1, align="C", fill=True)
     pdf.ln()
     
-    # Lignes des tours (Alternance blanc / gris tres clair)
     row_h = 21.0
     for idx, r in enumerate(rounds):
         if pdf.get_y() + row_h > 198:
@@ -407,11 +400,9 @@ def generate_pdf(rounds):
         x_start = pdf.get_x()
         y_start = pdf.get_y()
         
-        # Colonne Heure
         pdf.set_font("Helvetica", "B", 10)
         pdf.cell(w_time, row_h, encode_latin1(r.get("time_str", "")), border=1, align="C", fill=True)
         
-        # Colonnes Terrains
         for c in r["courts"]:
             x_cell = pdf.get_x()
             pdf.rect(x_cell, y_start, w_court, row_h, style="DF")
@@ -433,13 +424,11 @@ def generate_pdf(rounds):
             
             pdf.set_xy(x_cell + w_court, y_start)
             
-        # Colonne Joueurs au repos
         x_bench = pdf.get_x()
         pdf.rect(x_bench, y_start, w_bench, row_h, style="DF")
         bench_text = ", ".join(r["bench"]) if r["bench"] else "-"
         pdf.set_font("Helvetica", "", 9.5)
         
-        # Centrage vertical du texte du banc (1 ou 2 lignes selon la longueur)
         lines_est = pdf.multi_cell(w_bench - 4, 5.0, encode_latin1(bench_text), split_only=True)
         total_txt_h = len(lines_est) * 5.0
         y_offset = max(2.0, (row_h - total_txt_h) / 2.0)
@@ -462,6 +451,7 @@ with col_b1:
 with col_b2:
     if st.button(t["btn_reset"], use_container_width=True, key="btn_reset_draws"):
         st.session_state.rounds_results = None
+        st.session_state.bench_stats = None
         st.rerun()
 
 if st.session_state.rounds_results:
@@ -475,6 +465,15 @@ if st.session_state.rounds_results:
                 mime="application/pdf",
                 use_container_width=True
             )
+
+    # Aperçu rapide de l'équilibre du banc
+    if st.session_state.bench_stats:
+        with st.expander(t["stats_expander"], expanded=False):
+            stats_sorted = sorted(st.session_state.bench_stats.items(), key=lambda x: (-x[1], x[0]))
+            cols_stats = st.columns(4)
+            for idx, (player_name, count) in enumerate(stats_sorted):
+                with cols_stats[idx % 4]:
+                    st.write(f"**{player_name}** : {count} pause(s)")
 
     st.markdown(t["schedule_title"])
     for r in st.session_state.rounds_results:
