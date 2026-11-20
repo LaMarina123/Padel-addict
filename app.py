@@ -6,6 +6,9 @@ from fpdf import FPDF
 
 st.set_page_config(page_title="Padel Addict", page_icon="🎾", layout="wide")
 
+# --- CODE ADMINISTRATEUR ---
+ADMIN_CODE = "admin"
+
 st.markdown("""
     <style>
     .round-header { background-color: #2C3E50; color: white; padding: 10px; border-radius: 8px; font-weight: bold; margin-top: 20px; margin-bottom: 10px; }
@@ -25,7 +28,13 @@ LANGUAGES = {
         "courts_available": "Nombre de terrains disponibles :",
         "rental_time": "Temps de location total :",
         "match_duration": "Durée d'une partie :",
-        "player_management": "### 👥 Gestion de la Liste Padel Addict",
+        "player_management": "🔒 Gestion de la Liste Padel Addict ({})",
+        "player_management_unlocked": "🔓 Gestion de la Liste Padel Addict ({})",
+        "admin_prompt": "Entrez le code administrateur pour modifier la liste :",
+        "admin_placeholder": "Code admin...",
+        "admin_unlock_btn": "🔑 Déverrouiller",
+        "admin_lock_btn": "🔒 Verrouiller la rubrique",
+        "admin_error": "❌ Code administrateur incorrect.",
         "add_placeholder": "Nom du joueur...",
         "add_btn": "➕ Ajouter",
         "del_placeholder": "-- Sélectionner un joueur à retirer --",
@@ -64,7 +73,13 @@ LANGUAGES = {
         "courts_available": "Number of available courts:",
         "rental_time": "Total rental time:",
         "match_duration": "Match duration:",
-        "player_management": "### 👥 Padel Addict Player List Management",
+        "player_management": "🔒 Padel Addict Player List Management ({})",
+        "player_management_unlocked": "🔓 Padel Addict Player List Management ({})",
+        "admin_prompt": "Enter admin code to edit the list:",
+        "admin_placeholder": "Admin code...",
+        "admin_unlock_btn": "🔑 Unlock",
+        "admin_lock_btn": "🔒 Lock section",
+        "admin_error": "❌ Incorrect admin code.",
         "add_placeholder": "Player name...",
         "add_btn": "➕ Add",
         "del_placeholder": "-- Select a player to remove --",
@@ -96,9 +111,12 @@ LANGUAGES = {
     }
 }
 
-# --- INITIALISATION DE LA LANGUE ---
+# --- INITIALISATION DE LA LANGUE ET DU STATUT ADMIN ---
 if "lang" not in st.session_state:
     st.session_state.lang = "Français"
+
+if "admin_unlocked" not in st.session_state:
+    st.session_state.admin_unlocked = False
 
 col_logo, col_title = st.columns([1, 4])
 with col_logo:
@@ -183,27 +201,57 @@ with col_config:
 
 with col_players:
     t = LANGUAGES[st.session_state.lang]
-    st.markdown(f"{t['player_management']} ({len(st.session_state.players)})")
     
-    col_add_input, col_add_btn = st.columns([3, 1])
-    with col_add_input:
-        new_player = st.text_input(t["add_placeholder"], key="add_player_input", label_visibility="collapsed", placeholder=t["add_placeholder"])
-    with col_add_btn:
-        if st.button(t["add_btn"], use_container_width=True, key="btn_add_player"):
-            cleaned_name = new_player.strip()
-            if cleaned_name and cleaned_name not in st.session_state.players:
-                st.session_state.players.append(cleaned_name)
-                save_players(st.session_state.players)
-                st.rerun()
+    # --- RUBRIQUE VERROUILLÉE PAR CODE ADMIN ---
+    expander_label = (
+        t["player_management_unlocked"].format(len(st.session_state.players))
+        if st.session_state.admin_unlocked
+        else t["player_management"].format(len(st.session_state.players))
+    )
+    
+    with st.expander(expander_label, expanded=st.session_state.admin_unlocked):
+        if not st.session_state.admin_unlocked:
+            st.caption(t["admin_prompt"])
+            col_pwd, col_unlock = st.columns([3, 1])
+            with col_pwd:
+                entered_code = st.text_input(
+                    t["admin_prompt"],
+                    type="password",
+                    placeholder=t["admin_placeholder"],
+                    label_visibility="collapsed",
+                    key="admin_code_input"
+                )
+            with col_unlock:
+                if st.button(t["admin_unlock_btn"], use_container_width=True, key="btn_admin_unlock"):
+                    if entered_code == ADMIN_CODE:
+                        st.session_state.admin_unlocked = True
+                        st.rerun()
+                    else:
+                        st.error(t["admin_error"])
+        else:
+            col_add_input, col_add_btn = st.columns([3, 1])
+            with col_add_input:
+                new_player = st.text_input(t["add_placeholder"], key="add_player_input", label_visibility="collapsed", placeholder=t["add_placeholder"])
+            with col_add_btn:
+                if st.button(t["add_btn"], use_container_width=True, key="btn_add_player"):
+                    cleaned_name = new_player.strip()
+                    if cleaned_name and cleaned_name not in st.session_state.players:
+                        st.session_state.players.append(cleaned_name)
+                        save_players(st.session_state.players)
+                        st.rerun()
 
-    col_del_select, col_del_btn = st.columns([3, 1])
-    with col_del_select:
-        player_to_delete = st.selectbox(t["del_placeholder"], [t["del_placeholder"]] + sorted(st.session_state.players), label_visibility="collapsed", key="sb_del_player")
-    with col_del_btn:
-        if st.button(t["del_btn"], use_container_width=True, type="secondary", key="btn_del_player"):
-            if player_to_delete and player_to_delete != t["del_placeholder"]:
-                st.session_state.players.remove(player_to_delete)
-                save_players(st.session_state.players)
+            col_del_select, col_del_btn = st.columns([3, 1])
+            with col_del_select:
+                player_to_delete = st.selectbox(t["del_placeholder"], [t["del_placeholder"]] + sorted(st.session_state.players), label_visibility="collapsed", key="sb_del_player")
+            with col_del_btn:
+                if st.button(t["del_btn"], use_container_width=True, type="secondary", key="btn_del_player"):
+                    if player_to_delete and player_to_delete != t["del_placeholder"]:
+                        st.session_state.players.remove(player_to_delete)
+                        save_players(st.session_state.players)
+                        st.rerun()
+            
+            if st.button(t["admin_lock_btn"], use_container_width=True, key="btn_admin_lock"):
+                st.session_state.admin_unlocked = False
                 st.rerun()
 
     st.markdown("---")
@@ -270,16 +318,11 @@ def run_rotation():
         num_bench_needed = len(selected_players) - players_needed
         extra_bench_needed = num_bench_needed - len(forced_bench)
 
-        # Candidats potentiels pour aller sur le banc (hors exclusions forcées)
         candidates = [p for p in selected_players if p not in forced_bench]
 
         if extra_bench_needed <= 0:
             bench_players = list(forced_bench)
         else:
-            # Score de priorité pour aller sur le banc (plus petit = plus prioritaire pour se reposer) :
-            # 1. Moins de pauses cumulées jusqu'ici
-            # 2. N'était pas sur le banc au tour précédent
-            # 3. N'est pas prévu en exclusion forcée au tour suivant
             def bench_priority(p):
                 return (
                     bench_count[p],
@@ -290,12 +333,10 @@ def run_rotation():
             candidates.sort(key=bench_priority)
             cutoff_score = bench_priority(candidates[extra_bench_needed - 1])
 
-            # Joueurs strictement prioritaires pour le banc + groupe à égalité au seuil
             locked_bench = [p for p in candidates if bench_priority(p) < cutoff_score]
             tied_candidates = [p for p in candidates if bench_priority(p) == cutoff_score]
             slots_to_fill = extra_bench_needed - len(locked_bench)
 
-            # Choisir parmi les égalités la combinaison qui mélange au maximum les groupes sur le banc
             best_extra_bench = None
             min_bench_overlap = float("inf")
 
@@ -314,7 +355,6 @@ def run_rotation():
 
             bench_players = list(forced_bench) + locked_bench + best_extra_bench
 
-        # Mise à jour des compteurs de banc et de paires sur le banc
         for p in bench_players:
             bench_count[p] += 1
         for i in range(len(bench_players)):
@@ -326,7 +366,6 @@ def run_rotation():
         bench_set = set(bench_players)
         round_players = [p for p in selected_players if p not in bench_set]
 
-        # Recherche d'une répartition sur les terrains sans aucun partenaire en double
         best_courts = None
         min_duplicates = float("inf")
 
@@ -357,7 +396,6 @@ def run_rotation():
         if min_duplicates > 0:
             st.warning(t["warning_fallback"].format(r, min_duplicates))
 
-        # Enregistrement des nouveaux partenaires dans l'historique
         for court in best_courts:
             t1_p1, t1_p2 = court["t1"]
             t2_p1, t2_p2 = court["t2"]
