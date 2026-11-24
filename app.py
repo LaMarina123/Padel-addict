@@ -62,6 +62,7 @@ LANGUAGES = {
         "team2_label": "Équipe 2 :",
         "bench_label": "⏳ <b>Sur le banc pour ce tour :</b> ",
         "stats_expander": "📊 Vérifier l'équilibre des temps de repos par joueur",
+        "pause_unit": "pause(s)",
         "logo_info": "💡 Placez 'logo.png' dans Téléchargements."
     },
     "English": {
@@ -107,7 +108,54 @@ LANGUAGES = {
         "team2_label": "Team 2:",
         "bench_label": "⏳ <b>On the bench for this round:</b> ",
         "stats_expander": "📊 Check bench balance per player",
+        "pause_unit": "rest(s)",
         "logo_info": "💡 Place 'logo.png' in Downloads."
+    },
+    "Español": {
+        "subtitle": "Gestor y Generador Inteligente de Partidos",
+        "config_title": "### ⚙️ Configuración de la Sesión",
+        "lang_select": "Elegir idioma:",
+        "session_date": "Fecha de la sesión:",
+        "start_time": "Hora de inicio:",
+        "courts_available": "Número de pistas disponibles:",
+        "rental_time": "Tiempo total de alquiler:",
+        "match_duration": "Duración de un partido:",
+        "player_management": "🔒 Gestión de la Lista Padel Addict ({})",
+        "player_management_unlocked": "🔓 Gestión de la Lista Padel Addict ({})",
+        "admin_prompt": "Introduce el código de administrador para editar la lista:",
+        "admin_placeholder": "Código admin...",
+        "admin_unlock_btn": "🔑 Desbloquear",
+        "admin_lock_btn": "🔒 Bloquear sección",
+        "admin_error": "❌ Código de administrador incorrecto.",
+        "add_placeholder": "Nombre del jugador...",
+        "add_btn": "➕ Añadir",
+        "del_placeholder": "-- Seleccionar un jugador para eliminar --",
+        "del_btn": "🗑️ Eliminar",
+        "select_today": "🎯 Selecciona los jugadores presentes hoy ({}):",
+        "select_placeholder": "Elige los jugadores...",
+        "exclude_expander": "🚫 Excluir a uno o más jugadores de una ronda específica (Opcional)",
+        "exclude_round_label": "Ronda {} ({}) - Jugadores en descanso forzado:",
+        "exclude_placeholder": "Ningún jugador excluido",
+        "error_min_players": "❌ Necesitas al menos {} jugadores seleccionados para llenar {} pistas (Actualmente: {}).",
+        "error_too_many_excluded": "❌ Ronda {}: Demasiados jugadores excluidos ({}). Solo quedan {} jugadores activos para {} plazas necesarias.",
+        "warning_fallback": "⚠️ Restricción fuerte en la Ronda {}: se aplicó un mínimo de {} pareja(s) repetida(s).",
+        "pdf_title": "PADEL ADDICT - {}",
+        "pdf_time": "Hora",
+        "pdf_court": "Pista {}",
+        "pdf_bench": "Jugadores en descanso",
+        "pdf_tour": "RONDA",
+        "btn_generate": "🎲 Generar Partidos",
+        "btn_reset": "🔄 Reiniciar Sorteos",
+        "btn_download": "📥 Descargar Horario (PDF)",
+        "pdf_filename": "Horario_Padel_Addict.pdf",
+        "schedule_title": "### 🗓️ Programa de Partidos",
+        "court_label": "🎾 Pista",
+        "team1_label": "Equipo 1:",
+        "team2_label": "Equipo 2:",
+        "bench_label": "⏳ <b>En el banquillo para esta ronda:</b> ",
+        "stats_expander": "📊 Comprobar el equilibrio de descansos por jugador",
+        "pause_unit": "descanso(s)",
+        "logo_info": "💡 Coloca 'logo.png' en Descargas."
     }
 }
 
@@ -173,7 +221,7 @@ with col_config:
     st.markdown(t["config_title"])
     
     st.markdown(f"**{t['lang_select']}**")
-    col_fr, col_en = st.columns(2)
+    col_fr, col_en, col_es = st.columns(3)
     with col_fr:
         is_fr_active = st.session_state.lang == "Français"
         if st.button("🇫🇷 Français", use_container_width=True, type="primary" if is_fr_active else "secondary", key="btn_lang_fr"):
@@ -183,6 +231,11 @@ with col_config:
         is_en_active = st.session_state.lang == "English"
         if st.button("🇬🇧 English", use_container_width=True, type="primary" if is_en_active else "secondary", key="btn_lang_en"):
             st.session_state.lang = "English"
+            st.rerun()
+    with col_es:
+        is_es_active = st.session_state.lang == "Español"
+        if st.button("🇪🇸 Español", use_container_width=True, type="primary" if is_es_active else "secondary", key="btn_lang_es"):
+            st.session_state.lang = "Español"
             st.rerun()
             
     t = LANGUAGES[st.session_state.lang]
@@ -544,7 +597,7 @@ if st.session_state.rounds_results:
             cols_stats = st.columns(4)
             for idx, (player_name, count) in enumerate(stats_sorted):
                 with cols_stats[idx % 4]:
-                    st.write(f"**{player_name}** : {count} pause(s)")
+                    st.write(f"**{player_name}** : {count} {t['pause_unit']}")
 
     st.markdown(t["schedule_title"])
     for r in st.session_state.rounds_results:
